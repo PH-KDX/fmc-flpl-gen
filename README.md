@@ -1,10 +1,14 @@
 ## FMC Flightplan Generator
 
 This program generates flight plans for the Flight Management Computer by Harry Xue.
+It also creates .kml files with a visual representation of the generated route, which can be imported into Google Maps.
+
 Ensure that `generator.py` is in the same directory as `airports.json` and `nav_data.json`.
 Run using Python 3.
 
 Does not require `pip`.
+
+When running the program on macOS, replace `airports.json` and `nav_data.json` on lines `30` and `33` of `generator.py` with their respective full paths on the user's system.
 
 
     Copyright 2020 PH-KDX, Eddie.
