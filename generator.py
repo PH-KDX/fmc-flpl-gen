@@ -207,7 +207,7 @@ def rowMoveMenu():
 
     direction=input("Direction to shift waypoint (u for up/ d for down):\n>")
 
-    if direction.isalpha() and (direction.lower() == "up" or direction.lower() == "down"):
+    if direction.isalpha() and (direction.lower() == "u" or direction.lower() == "d"):
         direction = direction.lower()
     else:
         print(nOptErrorMsg)
