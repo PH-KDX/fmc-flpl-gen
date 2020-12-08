@@ -39,7 +39,7 @@ waypoints = json.loads(waypoints_json.read())
 
 # this must ALWAYS be the case, or the FMC will do weird stuff with the route.
 
-e = False
+in_db = False
 f = None
 
 # for use in latitude and longitude entry
@@ -120,8 +120,8 @@ def init_params():
     return create_header(dep,arr,fltnbr)
 
 
-def insert_row(waypoint_num,waypoint,lat,lon,alt,e,f):
-    cursor_object.execute("INSERT INTO Route VALUES (?,?,?,?,?,?,?)", (waypoint_num,waypoint,lat,lon,alt,e,f))
+def insert_row(waypoint_num,waypoint,lat,lon,alt,in_db,f):
+    cursor_object.execute("INSERT INTO Route VALUES (?,?,?,?,?,?,?)", (waypoint_num,waypoint,lat,lon,alt,in_db,f))
 
 # calculate between-waypoint leg distance with Haversine formula
 def leg_dist(lat0,lon0,lat,lon):
@@ -283,7 +283,7 @@ def add_waypoint(waypoint):
     if confirm == "c":
         waypoint_num = waypoint_num+1
         alt=get_alt()
-        insert_row(waypoint_num,waypoint,lat,lon, alt, e, f)
+        insert_row(waypoint_num,waypoint,lat,lon, alt, in_db, f)
         dist_total=dist_total+dist
         lat0=lat
         lon0=lon
