@@ -11,7 +11,7 @@ Does not require `pip`.
 When running the program from VSCode, replace `airports.json` and `nav_data.json` on lines `30` and `33` of `generator.py` with their respective full paths on the user's system, or change the dynamic working directory to be that containing `generator.py`.
 
 
-    Copyright 2020 PH-KDX, Eddie.
+    Copyright 2020 PH-KDX.
     This file is part of FMC Flightplan Generator.
 
     FMC Flightplan Generator is free software: you can redistribute it and/or modify
