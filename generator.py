@@ -18,6 +18,7 @@
 
 import json
 import xml.etree.ElementTree as ET
+from xml.dom import minidom
 import sqlite3
 import math
 
@@ -96,7 +97,7 @@ def waypoint_info(waypoint_id):
         "lat": row[2],
         "lon": row[3],
         "alt": row[4],
-        "in_db": row[5],
+        "in_db": bool(row[5]),
         "notes": row[6]
         }
     return waypoint_contents
@@ -144,6 +145,14 @@ def row_move(waypoint_id, direction):
         )
 
 
+# XML functions
+# convert ugly XML text to a prettified version
+def prettify(elem):
+    rough_string = ElementTree.tostring(elem, 'utf-8')
+    reparsed = minidom.parseString(rough_string)
+    return reparsed.toprettyxml(indent="  ")
+
+
 # Python functions
 # calculates total route distance
 def route_distance():
@@ -185,9 +194,37 @@ def manual_coords():
     return lat, lon
 
 
+def route_dict_creator(dep, arr, fltnbr):
+    waypoint_len = waypoint_counter()
+    waypoints_dict = []
+    for i in range(waypoint_len):
+        row = waypoint_info(i+1)
+        row_dict = [row["id"],
+                    row["waypoint"],
+                    row["lat"],
+                    row["lon"],
+                    row["alt"],
+                    row["in_db"],
+                    row["notes"]]
+        waypoints_dict.append(row_dict)
+    route_dict = []
+    route_dict.append(dep)
+    route_dict.append(arr)
+    route_dict.append(fltnbr)
+    route_dict.append(waypoints_dict)
+    return route_dict
+
+
 # full list of options if there are multiple for a waypoint
 def print_waypoints_list(waypoint, opt_len):
-    print("The following options were found for waypoint", waypoint)
+    print(f"The following options were found for waypoint {waypoint}:")
+    dash = '-' * 60
+    print(dash)
+    print("{:^10}{:^16}{:^16}{:^12}".format("Number",
+                                                         "Latitude",
+                                                         "Longitude",
+                                                         "Leg distance"))
+    print(dash)
     waypoint_len = waypoint_counter()
     if waypoint_len > 0:
         # the number of waypoints is the id of the previous waypoint
@@ -202,11 +239,16 @@ def print_waypoints_list(waypoint, opt_len):
         lat = waypoints[waypoint][i][0]
         lon = waypoints[waypoint][i][1]
         leg_dist = dist(lat0, lon0, lat, lon)
-        print(f"{i}) coordinates {waypoints[waypoint][i]}",
-              f"leg distance {round(leg_dist, 3)} nm")
+        leg_dist = round(leg_dist, 3)
+
+        print("{:^10}{:^16}{:^16}{:^12}".format(i,
+                                                             lat,
+                                                             lon,
+                                                             leg_dist))
         # set coordinates to measure from for next iteration
         lat_0 = lat
         lon_0 = lon
+    print(dash)
 
 
 def print_route_intermediate():
@@ -218,11 +260,21 @@ def print_route_intermediate():
         print("Route so far")
         dash = '-' * 75
         print(dash)
-        print("{:<5}{:<9}{:<15}{:<15}{:<11}{:<8}".format("ID", "Name", "Latitude", "Longitude", "Altitude", "Notes"))
+        print("{:<5}{:^9}{:^15}{:^15}{:^11}{:<8}".format("ID",
+                                                         "Name",
+                                                         "Latitude",
+                                                         "Longitude",
+                                                         "Altitude",
+                                                         "Notes"))
         print(dash)
         for row in results:
             list1 = list(row)
-            print("{:<5}{:<9}{:<15}{:<15}{:<11}{:<8}".format(list1[0], list1[1], list1[2], list1[3], list1[4], list1[6]))
+            print("{:<5}{:^9}{:^15}{:^15}{:^11}{:<8}".format(list1[0],
+                                                             list1[1],
+                                                             list1[2],
+                                                             list1[3],
+                                                             str(list1[4]),
+                                                             str(list1[6])))
         print(dash)
         dist_temp = route_distance()
         print("Total distance is", round(dist_temp, 3), "nm.")
@@ -339,6 +391,20 @@ def airport_coords(icao):
     return lat, lon
 
 
+def route_to_file_menu(json_route):
+    print("Write route to file? Enter c to confirm, or anything else to skip")
+    write_to_file = input(">")
+
+    if str(write_to_file).lower() == "c":
+        dumpfile_name = input("Please type the filename for your dumpfile\n>")
+        with open(dumpfile_name, "w") as route_file_txt:
+            route_file_txt.write(json_route)
+        print(f"Route has been written to {dumpfile}")
+
+    else:
+        print("Skipping write of route to file.")
+
+
 def route_menu():
     while True:
         num_waypoints = waypoint_counter()
@@ -436,9 +502,12 @@ def main():
     cursor_object.execute("SELECT * FROM Route")
     results = cursor_object.fetchall()
 
-    # formatted_route = print_route_formatted(header,results)
+    route_dict = route_dict_creator(dep, arr, fltnbr)
+    route_json = json.dumps(route_dict)
+    print("\nYour FMC flight plan is\n\n")
+    print(route_json)
 
-    # route_to_file(formatted_route)
+    #route_to_file_menu(formatted_route)
 
     # generate_map(results)
 
