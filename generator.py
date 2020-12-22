@@ -302,8 +302,7 @@ def route_dict_creator(dep, arr, fltnbr):
     waypoints_dict = []
     for i in range(waypoint_len):
         row = waypoint_info(i+1)
-        row_dict = [row["id"],
-                    row["waypoint"],
+        row_dict = [row["waypoint"],
                     row["lat"],
                     row["lon"],
                     row["alt"],
