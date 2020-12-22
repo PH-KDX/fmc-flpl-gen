@@ -117,9 +117,8 @@ def row_move(waypoint_id, direction):
     if direction == "up":
         # move the previous waypoint to far away
         cursor_object.execute(
-            ("UPDATE Route SET Waypoint_id=10000000 WHERE Waypoint_id=(\
-                SELECT Waypoint_id-1 FROM Route WHERE Waypoint_id=?)"),
-            [waypoint_id]
+            ("UPDATE Route SET Waypoint_id=10000000 WHERE Waypoint_id=?"),
+            [waypoint_id-1]
             )
         # move the waypoint to be moved to the place just vacated
         cursor_object.execute(
@@ -129,9 +128,8 @@ def row_move(waypoint_id, direction):
     elif direction == "down":
         # move the next waypoint to a place far away
         cursor_object.execute(
-            ("UPDATE Route SET Waypoint_id=10000000 WHERE Waypoint_id=(\
-                SELECT Waypoint_id+1 FROM Route WHERE Waypoint_id=?)"),
-            [waypoint_id]
+            ("UPDATE Route SET Waypoint_id=10000000 WHERE Waypoint_id=?"),
+            [waypoint_id+1]
             )
         # move the waypoint to be moved to the place just vacated
         cursor_object.execute(
@@ -145,12 +143,117 @@ def row_move(waypoint_id, direction):
         )
 
 
-# XML functions
-# convert ugly XML text to a prettified version
-def prettify(elem):
-    rough_string = ElementTree.tostring(elem, 'utf-8')
-    reparsed = minidom.parseString(rough_string)
-    return reparsed.toprettyxml(indent="  ")
+# KML functions
+# convert ugly KML text to a prettified version
+
+def add_waypoint(waypoint, lat, lon, alt, notes, root):
+    placemark = ET.Element("Placemark")
+    name = ET.SubElement(placemark, "name")
+    name.text = waypoint
+    description = ET.SubElement(placemark, "description")
+    description.text = notes
+    point = ET.SubElement(placemark, "Point")
+    coordinates = ET.SubElement(point, "coordinates")
+    if alt is None:
+        coordinates.text = f"{lon},{lat}"
+    else:
+        coordinates.text = f"{lon},{lat},{alt}"
+    root.append(placemark)
+    return root
+
+
+def add_leg(lat0, lon0, lat, lon, leg_name, root):
+    placemark = ET.Element("Placemark")
+    name = ET.SubElement(placemark, "name")
+    name.text = leg_name
+    linestring = ET.SubElement(placemark, "LineString")
+    coordinates = ET.SubElement(linestring, "coordinates")
+    coordinates.text = f"{lon0},{lat0}  {lon},{lat}"
+    root.append(placemark)
+    return root
+
+
+def generate_kml(dumpfilename, route_dict, insert_arr):
+    # KML header
+    root = ET.Element("kml", xmlns="http://www.opengis.net/kml/2.2")
+
+    # dep
+    lat0 = lat_dep
+    lon0 = lon_dep
+    waypoint = route_dict[0]
+    root = add_waypoint(waypoint, lat0, lon0, "0", "Departure airport", root)
+
+    # waypoints and legs
+
+    for i in route_dict[3]:
+        # waypoint
+        waypoint = i[1]
+        lat = i[2]
+        lon = i[3]
+        alt = i[4]
+        notes = i[6]
+        root = add_waypoint(waypoint, lat, lon, alt, notes, root)
+
+        # leg
+        distance = round(dist(lat0, lon0, lat, lon), 1)
+        distance = str(distance) + " nm"
+        root = add_leg(lat0, lon0, lat, lon, distance, root)
+
+        # and update for next iteration
+        lat0 = lat
+        lon0 = lon
+
+    # only add arrival if specified by user
+    if insert_arr:
+        lat = lat_arr
+        lon = lon_arr
+        waypoint = route_dict[1]
+        root = add_waypoint(waypoint, lat, lon, "0", "Arrival airport", root)
+        distance = round(dist(lat0, lon0, lat, lon), 1)
+        distance = str(distance) + " nm"
+        root = add_leg(lat0, lon0, lat, lon, distance, root)
+
+    doc = minidom.parseString(ET.tostring(root))
+    with open(dumpfilename, "wb") as dumpfile:
+        dumpfile.write(doc.toprettyxml(encoding='utf-8'))
+
+
+def route_to_kml_menu(route_dict):
+    while True:
+        print("Export route as Google Maps file? (y/n)")
+        write_to_file = input(">")
+        write_to_file == str(write_to_file).lower()
+        if write_to_file.startswith("y"):
+            write_to_file = True
+            break
+        elif write_to_file.startswith("n"):
+            write_to_file = False
+            break
+        else:
+            print("Not an option.")
+
+    if write_to_file:
+        while True:
+            print("Please type dumpfile name (full path) ending in .kml")
+            dumpfile = input(">")
+            if dumpfile[-4:] == ".kml":
+                break
+            else:
+                print("Sorry, not a valid filename.")
+
+        print("Include arrival airport in route map?")
+        print("If the route already has a runway line-up, don't include it.")
+        print("Enter y to include it, or anything else to omit it")
+        insert_arr = str(input(">")).lower()
+
+        insert_arr = True if insert_arr == "y" else False
+
+        generate_kml(dumpfile, route_dict, insert_arr)
+
+        print(f"Route map has been written to {dumpfile}")
+
+    else:
+        print("Skipping Google Maps route generation")
 
 
 # Python functions
@@ -161,7 +264,7 @@ def route_distance():
     lat0 = lat_dep
     lon0 = lon_dep
     if waypoint_len > 0:
-        for i in range(1, waypoint_len):
+        for i in range(1, waypoint_len+1):
             info = waypoint_info(i)
             lat = info["lat"]
             lon = info["lon"]
@@ -221,9 +324,9 @@ def print_waypoints_list(waypoint, opt_len):
     dash = '-' * 60
     print(dash)
     print("{:^10}{:^16}{:^16}{:^12}".format("Number",
-                                                         "Latitude",
-                                                         "Longitude",
-                                                         "Leg distance"))
+                                            "Latitude",
+                                            "Longitude",
+                                            "Leg distance"))
     print(dash)
     waypoint_len = waypoint_counter()
     if waypoint_len > 0:
@@ -242,12 +345,12 @@ def print_waypoints_list(waypoint, opt_len):
         leg_dist = round(leg_dist, 3)
 
         print("{:^10}{:^16}{:^16}{:^12}".format(i,
-                                                             lat,
-                                                             lon,
-                                                             leg_dist))
+                                                lat,
+                                                lon,
+                                                leg_dist))
         # set coordinates to measure from for next iteration
-        lat_0 = lat
-        lon_0 = lon
+        lat0 = lat
+        lon0 = lon
     print(dash)
 
 
@@ -382,6 +485,57 @@ def row_delete_menu():
             print("Not a waypoint option, sorry")
 
 
+# iteratively shifts the waypoint one step at a time shift_spaces times
+def row_move_menu():
+    waypoint_num = waypoint_counter()
+
+    waypt_id = input("Waypoint ID to shift:\n>")
+
+    if waypt_id.isdigit() and 0 < int(waypt_id) <= waypoint_num:
+        waypt_id = int(waypt_id)
+    else:
+        print("Not an option in range, sorry")
+        return
+
+    direction = input("Direction to shift waypoint (u for up/d for down):\n>")
+
+    if direction.isalpha() and (direction.lower() in ["u", "d"]):
+        direction = direction.lower()
+    else:
+        print(error_msg)
+        return
+
+    shift_spaces = input("Spaces to shift waypoint:\n>")
+    if shift_spaces.isdigit():
+        shift_spaces = int(shift_spaces)
+    else:
+        print(error_msg)
+        return
+
+    if direction == "u":
+        end_id = waypt_id - shift_spaces
+        if end_id > 0:
+            for i in range(waypt_id, end_id, -1):
+                row_move(i, "up")
+            row_order()
+            print("Waypoint has been shifted", shift_spaces, "space(s) up.")
+        else:
+            print("Choice exceeds route range; please try again.")
+
+    elif direction == "d":
+        end_id = waypt_id + shift_spaces
+        if end_id <= waypoint_num:
+            for i in range(waypt_id, end_id):
+                row_move(i, "down")
+            row_order()
+            print("Waypoint has been shifted", shift_spaces, "space(s) down.")
+        else:
+            print("Choice exceeds route range; please try again.")
+
+    else:
+        print(error_msg)
+
+
 def airport_coords(icao):
     if icao in airports:
         lat = float(airports[icao][0])
@@ -392,14 +546,25 @@ def airport_coords(icao):
 
 
 def route_to_file_menu(json_route):
-    print("Write route to file? Enter c to confirm, or anything else to skip")
-    write_to_file = input(">")
+    while True:
+        print("Write route to file? (y/n)")
+        write_to_file = input(">")
+        write_to_file == str(write_to_file).lower()
+        if write_to_file.startswith("y"):
+            write_to_file = True
+            break
+        elif write_to_file.startswith("n"):
+            write_to_file = False
+            break
+        else:
+            print("Not an option.")
 
-    if str(write_to_file).lower() == "c":
-        dumpfile_name = input("Please type the filename for your dumpfile\n>")
-        with open(dumpfile_name, "w") as route_file_txt:
-            route_file_txt.write(json_route)
-        print(f"Route has been written to {dumpfile}")
+    if write_to_file:
+        print("Please type the filename for your plaintext dumpfile")
+        dumpfile_name = input(">")
+        with open(dumpfile_name, "w") as dumpfile:
+            dumpfile.write(json_route)
+        print(f"Route has been written to {dumpfile_name}")
 
     else:
         print("Skipping write of route to file.")
@@ -504,12 +669,12 @@ def main():
 
     route_dict = route_dict_creator(dep, arr, fltnbr)
     route_json = json.dumps(route_dict)
-    print("\nYour FMC flight plan is\n\n")
-    print(route_json)
+    print("\nYour FMC flight plan is\n")
+    print(route_json, "\n")
 
-    #route_to_file_menu(formatted_route)
+    route_to_file_menu(route_json)
 
-    # generate_map(results)
+    route_to_kml_menu(route_dict)
 
     # input("press enter to exit")
     connection_object.close()
