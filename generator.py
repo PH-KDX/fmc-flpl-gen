@@ -144,7 +144,6 @@ def row_move(waypoint_id, direction):
 
 
 # KML functions
-# convert ugly KML text to a prettified version
 
 def add_waypoint(waypoint, lat, lon, alt, notes, root):
     placemark = ET.Element("Placemark")
@@ -187,11 +186,11 @@ def generate_kml(dumpfilename, route_dict, insert_arr):
 
     for i in route_dict[3]:
         # waypoint
-        waypoint = i[1]
-        lat = i[2]
-        lon = i[3]
-        alt = i[4]
-        notes = i[6]
+        waypoint = i[0]
+        lat = i[1]
+        lon = i[2]
+        alt = i[3]
+        notes = i[5]
         root = add_waypoint(waypoint, lat, lon, alt, notes, root)
 
         # leg
