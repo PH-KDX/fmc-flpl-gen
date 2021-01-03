@@ -174,7 +174,10 @@ def add_leg(lat0, lon0, lat, lon, leg_name, root):
 
 def generate_kml(dumpfilename, route_dict, insert_arr):
     # KML header
-    root = ET.Element("kml", xmlns="http://www.opengis.net/kml/2.2")
+    kml = ET.Element("kml", xmlns="http://www.opengis.net/kml/2.2")
+
+    # Main document containing everything else
+    root = ET.SubElement(kml, "Document")
 
     # dep
     lat0 = lat_dep
@@ -212,7 +215,7 @@ def generate_kml(dumpfilename, route_dict, insert_arr):
         distance = str(distance) + " nm"
         root = add_leg(lat0, lon0, lat, lon, distance, root)
 
-    doc = minidom.parseString(ET.tostring(root))
+    doc = minidom.parseString(ET.tostring(kml))
     with open(dumpfilename, "wb") as dumpfile:
         dumpfile.write(doc.toprettyxml(encoding='utf-8'))
 
