@@ -349,9 +349,6 @@ def print_waypoints_list(waypoint, opt_len):
                                                 lat,
                                                 lon,
                                                 leg_dist))
-        # set coordinates to measure from for next iteration
-        lat0 = lat
-        lon0 = lon
     print(dash)
 
 
